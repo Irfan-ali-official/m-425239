@@ -24,6 +24,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApartmentProps } from "@/components/ApartmentCard";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Sample apartments data
 const apartmentsData: ApartmentProps[] = [
@@ -63,6 +67,7 @@ const apartmentsData: ApartmentProps[] = [
 ];
 
 export default function BookingPage() {
+  const { t } = useLanguage();
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(addDays(new Date(), 7));
   const [adults, setAdults] = useState("2");
@@ -86,6 +91,7 @@ export default function BookingPage() {
     specialRequests: ""
   });
   const [isBookingConfirmed, setIsBookingConfirmed] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
   
   useEffect(() => {
     // Scroll to top when component mounts
@@ -95,59 +101,62 @@ export default function BookingPage() {
   // Calculate nights and total price
   const nightsCount = startDate && endDate ? differenceInDays(endDate, startDate) : 0;
   const totalPrice = selectedApartment ? selectedApartment.price * nightsCount : 0;
+  const cleaningFee = selectedApartment ? 50 : 0;
+  const serviceFee = selectedApartment ? Math.round(totalPrice * 0.12) : 0;
+  const finalTotal = totalPrice + cleaningFee + serviceFee;
   
-  // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  // Handle select changes
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-  
-  // Submit booking
-  const handleSubmitBooking = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleConfirmBooking = () => {
     // In a real app, this would send the booking data to a server
-    console.log("Booking submitted:", {
+    console.log("Booking confirmed:", {
       apartment: selectedApartment,
       dates: { startDate, endDate },
       guests: { adults, children },
-      customerInfo: formData
+      guestInfo: formData,
+      paymentDetails: {
+        method: formData.paymentMethod,
+        total: finalTotal
+      }
     });
     
-    // Show confirmation
     setIsBookingConfirmed(true);
     
-    // Reset form after booking is confirmed
-    setTimeout(() => {
-      setCurrentStep(1);
-      setSelectedApartment(null);
-      setStartDate(new Date());
-      setEndDate(addDays(new Date(), 7));
-      setAdults("2");
-      setChildren("0");
-      setFormData({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address: "",
-        city: "",
-        zipCode: "",
-        country: "",
-        paymentMethod: "credit-card",
-        cardName: "",
-        cardNumber: "",
-        cardExpiry: "",
-        cardCvc: "",
-        specialRequests: ""
-      });
-      setIsBookingConfirmed(false);
-    }, 5000);
+    // Reset form after booking
+    setCurrentStep(1);
+    setSelectedApartment(null);
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      zipCode: "",
+      country: "",
+      paymentMethod: "credit-card",
+      cardName: "",
+      cardNumber: "",
+      cardExpiry: "",
+      cardCvc: "",
+      specialRequests: ""
+    });
+  };
+  
+  const nextStep = () => {
+    if (currentStep === 1 && !selectedApartment) {
+      return; // Cannot proceed without selecting an apartment
+    }
+    setCurrentStep(prev => prev + 1);
+    window.scrollTo(0, 0);
+  };
+  
+  const prevStep = () => {
+    setCurrentStep(prev => prev - 1);
+    window.scrollTo(0, 0);
   };
   
   return (
@@ -156,694 +165,712 @@ export default function BookingPage() {
       
       <main className="flex-1 pt-20">
         {/* Header Section */}
-        <section className="relative py-16 bg-gradient-to-r from-sea-light to-white dark:from-sea-dark dark:to-background overflow-hidden">
-          <div className="container relative z-10">
-            <div className="max-w-3xl mx-auto text-center animate-fade-in">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-                Book Your Stay
+        <section className="py-16 bg-gradient-to-r from-sea-light to-white dark:from-sea-dark dark:to-background">
+          <div className="container">
+            <div className="max-w-3xl mx-auto text-center">
+              <h1 className="text-3xl md:text-4xl font-bold mb-4">
+                {t.booking.title}
               </h1>
               <p className="text-muted-foreground text-lg">
-                Complete your reservation in a few simple steps.
+                {t.booking.subtitle}
               </p>
+              
+              {/* Booking Steps */}
+              <div className="flex justify-between items-center mt-8 max-w-2xl mx-auto">
+                {[
+                  { num: 1, label: t.booking.steps.chooseRoom },
+                  { num: 2, label: t.booking.steps.guestDetails },
+                  { num: 3, label: t.booking.steps.confirmation }
+                ].map((step, index) => (
+                  <div key={step.num} className="flex flex-col items-center relative">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${
+                      currentStep === step.num 
+                        ? "bg-primary text-primary-foreground" 
+                        : currentStep > step.num 
+                          ? "bg-primary/80 text-primary-foreground" 
+                          : "bg-muted text-muted-foreground"
+                    }`}>
+                      {currentStep > step.num ? <Check size={18} /> : step.num}
+                    </div>
+                    <span className={`text-sm ${currentStep === step.num ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                      {step.label}
+                    </span>
+                    
+                    {/* Connector line */}
+                    {index < 2 && (
+                      <div className={`absolute top-5 left-12 w-16 md:w-32 h-0.5 transition-colors ${
+                        currentStep > step.num + 1 
+                          ? "bg-primary/80" 
+                          : "bg-muted"
+                      }`} />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-          
-          {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-1/3 h-full opacity-10">
-            <div className="absolute top-10 right-10 w-64 h-64 rounded-full bg-primary/50 blur-3xl" />
-            <div className="absolute bottom-10 right-40 w-48 h-48 rounded-full bg-sea-light blur-3xl" />
           </div>
         </section>
         
-        {/* Booking Steps */}
-        <section className="container py-8">
-          <div className="relative animate-fade-in [animation-delay:200ms]">
-            <div className="flex justify-between items-center mb-8">
-              {[1, 2, 3].map((step) => (
-                <div key={step} className="flex flex-col items-center relative z-10">
-                  <div
-                    className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors",
-                      currentStep >= step
-                        ? "bg-primary text-white"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {currentStep > step ? (
-                      <Check className="h-5 w-5" />
-                    ) : (
-                      <span>{step}</span>
-                    )}
-                  </div>
-                  <span
-                    className={cn(
-                      "text-sm font-medium",
-                      currentStep >= step
-                        ? "text-foreground"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {step === 1 ? "Choose Room" : step === 2 ? "Guest Details" : "Confirmation"}
-                  </span>
-                </div>
-              ))}
-            </div>
-            
-            {/* Progress line */}
-            <div className="absolute top-5 left-0 right-0 h-0.5 bg-muted z-0">
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
-              />
-            </div>
-          </div>
-          
-          {/* Step 1: Choose Room */}
-          {currentStep === 1 && (
-            <div className="animate-fade-in [animation-delay:300ms]">
-              <div className="max-w-4xl mx-auto">
-                {/* Date and Guests Selection */}
-                <div className="glass-card p-6 mb-8">
-                  <h2 className="text-xl font-semibold mb-4">Select Dates and Guests</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Check-in Date */}
-                    <div className="space-y-2">
-                      <label htmlFor="check-in" className="block text-sm font-medium">
-                        Check-in Date
-                      </label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="check-in"
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !startDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {startDate ? format(startDate, "PPP") : <span>Select date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={startDate}
-                            onSelect={setStartDate}
-                            initialFocus
-                            disabled={(date) => date < new Date()}
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    
-                    {/* Check-out Date */}
-                    <div className="space-y-2">
-                      <label htmlFor="check-out" className="block text-sm font-medium">
-                        Check-out Date
-                      </label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="check-out"
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !endDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {endDate ? format(endDate, "PPP") : <span>Select date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={endDate}
-                            onSelect={setEndDate}
-                            initialFocus
-                            disabled={(date) => date < (startDate || new Date())}
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    
-                    {/* Adults */}
-                    <div className="space-y-2">
-                      <label htmlFor="adults" className="block text-sm font-medium">
-                        Adults
-                      </label>
-                      <Select value={adults} onValueChange={setAdults}>
-                        <SelectTrigger id="adults" className="w-full">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 6].map((num) => (
-                            <SelectItem key={num} value={num.toString()}>
-                              {num} {num === 1 ? "Adult" : "Adults"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Children */}
-                    <div className="space-y-2">
-                      <label htmlFor="children" className="block text-sm font-medium">
-                        Children
-                      </label>
-                      <Select value={children} onValueChange={setChildren}>
-                        <SelectTrigger id="children" className="w-full">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[0, 1, 2, 3, 4].map((num) => (
-                            <SelectItem key={num} value={num.toString()}>
-                              {num} {num === 1 ? "Child" : "Children"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Apartments Selection */}
-                <h2 className="text-xl font-semibold mb-4">Select Your Accommodation</h2>
-                <div className="space-y-6">
-                  {apartmentsData.map((apartment) => (
-                    <div 
-                      key={apartment.id}
-                      className={cn(
-                        "border rounded-xl overflow-hidden transition-all flex flex-col md:flex-row",
-                        selectedApartment?.id === apartment.id 
-                          ? "border-primary shadow-md" 
-                          : "border-border hover:border-primary/50"
-                      )}
-                    >
-                      <div className="md:w-1/3 h-48 md:h-auto relative">
-                        <img 
-                          src={apartment.image} 
-                          alt={apartment.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="p-6 flex-1 flex flex-col">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold mb-2">{apartment.name}</h3>
-                          <p className="text-muted-foreground mb-4">{apartment.description}</p>
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            <div className="text-sm bg-muted px-3 py-1 rounded-full">
-                              {apartment.capacity} Guests
-                            </div>
-                            <div className="text-sm bg-muted px-3 py-1 rounded-full">
-                              {apartment.size} m²
-                            </div>
-                            <div className="text-sm bg-muted px-3 py-1 rounded-full">
-                              {apartment.location}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between mt-4">
-                          <div>
-                            <span className="text-xl font-bold">${apartment.price}</span>
-                            <span className="text-muted-foreground text-sm"> / night</span>
-                          </div>
-                          <Button 
-                            variant={selectedApartment?.id === apartment.id ? "default" : "outline"}
-                            className={selectedApartment?.id === apartment.id ? "btn-primary" : ""}
-                            onClick={() => setSelectedApartment(apartment)}
-                          >
-                            {selectedApartment?.id === apartment.id ? (
-                              <>
-                                <Check className="mr-2 h-4 w-4" />
-                                Selected
-                              </>
-                            ) : (
-                              "Select"
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="flex justify-end mt-8">
-                  <Button 
-                    className="btn-primary"
-                    disabled={!selectedApartment}
-                    onClick={() => setCurrentStep(2)}
-                  >
-                    Continue <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Step 2: Guest Details */}
-          {currentStep === 2 && (
-            <div className="animate-fade-in [animation-delay:300ms]">
-              <div className="max-w-4xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {/* Guest Information Form */}
-                  <div className="md:col-span-2">
-                    <h2 className="text-xl font-semibold mb-4">Guest Information</h2>
-                    <form className="space-y-6">
-                      <div className="glass-card p-6 space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="firstName">First Name</Label>
-                            <Input 
-                              id="firstName" 
-                              name="firstName" 
-                              value={formData.firstName} 
-                              onChange={handleInputChange} 
-                              required 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="lastName">Last Name</Label>
-                            <Input 
-                              id="lastName" 
-                              name="lastName" 
-                              value={formData.lastName} 
-                              onChange={handleInputChange} 
-                              required 
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input 
-                              id="email" 
-                              name="email" 
-                              type="email" 
-                              value={formData.email} 
-                              onChange={handleInputChange} 
-                              required 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="phone">Phone</Label>
-                            <Input 
-                              id="phone" 
-                              name="phone" 
-                              value={formData.phone} 
-                              onChange={handleInputChange} 
-                              required 
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="address">Address</Label>
-                          <Input 
-                            id="address" 
-                            name="address" 
-                            value={formData.address} 
-                            onChange={handleInputChange} 
-                            required 
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="city">City</Label>
-                            <Input 
-                              id="city" 
-                              name="city" 
-                              value={formData.city} 
-                              onChange={handleInputChange} 
-                              required 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="zipCode">Zip Code</Label>
-                            <Input 
-                              id="zipCode" 
-                              name="zipCode" 
-                              value={formData.zipCode} 
-                              onChange={handleInputChange} 
-                              required 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="country">Country</Label>
-                            <Input 
-                              id="country" 
-                              name="country" 
-                              value={formData.country} 
-                              onChange={handleInputChange} 
-                              required 
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="specialRequests">Special Requests</Label>
-                          <textarea 
-                            id="specialRequests" 
-                            name="specialRequests" 
-                            value={formData.specialRequests} 
-                            onChange={handleInputChange}
-                            className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            placeholder="Any special requests or notes for your stay"
-                          />
-                        </div>
-                      </div>
+        {/* Booking Content */}
+        <section className="py-12">
+          <div className="container">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Main Form Area */}
+              <div className="col-span-1 lg:col-span-2">
+                {/* Step 1: Choose Room */}
+                {currentStep === 1 && (
+                  <div className="space-y-8 animate-fade-in">
+                    {/* Date and Guest Selection */}
+                    <div className="glass-card p-6 space-y-6">
+                      <h3 className="text-xl font-bold">
+                        {t.booking.dates.selectDates}
+                      </h3>
                       
-                      <h2 className="text-xl font-semibold mb-4">Payment Information</h2>
-                      <div className="glass-card p-6 space-y-6">
-                        <Tabs defaultValue="credit-card" onValueChange={(value) => handleSelectChange("paymentMethod", value)}>
-                          <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="credit-card">Credit Card</TabsTrigger>
-                            <TabsTrigger value="pay-at-property">Pay at Property</TabsTrigger>
-                          </TabsList>
-                          <TabsContent value="credit-card" className="space-y-4 mt-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="cardName">Name on Card</Label>
-                              <Input 
-                                id="cardName" 
-                                name="cardName" 
-                                value={formData.cardName} 
-                                onChange={handleInputChange} 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Check-in Date */}
+                        <div className="space-y-2">
+                          <label htmlFor="check-in" className="block text-sm font-medium">
+                            {t.booking.dates.checkIn}
+                          </label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="check-in"
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !startDate && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {startDate ? format(startDate, "PPP") : <span>{t.booking.dates.selectDate}</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={startDate}
+                                onSelect={setStartDate}
+                                initialFocus
+                                disabled={(date) => date < new Date()}
                               />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="cardNumber">Card Number</Label>
-                              <Input 
-                                id="cardNumber" 
-                                name="cardNumber" 
-                                value={formData.cardNumber} 
-                                onChange={handleInputChange}
-                                placeholder="0000 0000 0000 0000" 
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        
+                        {/* Check-out Date */}
+                        <div className="space-y-2">
+                          <label htmlFor="check-out" className="block text-sm font-medium">
+                            {t.booking.dates.checkOut}
+                          </label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="check-out"
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !endDate && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {endDate ? format(endDate, "PPP") : <span>{t.booking.dates.selectDate}</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={endDate}
+                                onSelect={setEndDate}
+                                initialFocus
+                                disabled={(date) => date < (startDate || new Date())}
                               />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="cardExpiry">Expiry Date</Label>
-                                <Input 
-                                  id="cardExpiry" 
-                                  name="cardExpiry" 
-                                  value={formData.cardExpiry} 
-                                  onChange={handleInputChange}
-                                  placeholder="MM/YY" 
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="cardCvc">CVC</Label>
-                                <Input 
-                                  id="cardCvc" 
-                                  name="cardCvc" 
-                                  value={formData.cardCvc} 
-                                  onChange={handleInputChange}
-                                  placeholder="123" 
-                                />
-                              </div>
-                            </div>
-                          </TabsContent>
-                          <TabsContent value="pay-at-property" className="mt-4">
-                            <p className="text-muted-foreground">
-                              You will be required to provide a valid credit card upon arrival for security purposes, 
-                              but payment will be collected during your stay at the property.
-                            </p>
-                          </TabsContent>
-                        </Tabs>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        
+                        {/* Adults */}
+                        <div className="space-y-2">
+                          <label htmlFor="adults" className="block text-sm font-medium">
+                            {t.booking.dates.adults}
+                          </label>
+                          <Select value={adults} onValueChange={setAdults}>
+                            <SelectTrigger id="adults" className="w-full">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[1, 2, 3, 4, 5, 6].map((num) => (
+                                <SelectItem key={num} value={num.toString()}>
+                                  {num} {num === 1 ? t.booking.dates.adult : t.booking.dates.adults}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Children */}
+                        <div className="space-y-2">
+                          <label htmlFor="children" className="block text-sm font-medium">
+                            {t.booking.dates.children}
+                          </label>
+                          <Select value={children} onValueChange={setChildren}>
+                            <SelectTrigger id="children" className="w-full">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[0, 1, 2, 3, 4].map((num) => (
+                                <SelectItem key={num} value={num.toString()}>
+                                  {num} {num === 1 ? t.booking.dates.child : t.booking.dates.children}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                    </form>
-                  </div>
-                  
-                  {/* Booking Summary */}
-                  <div className="md:col-span-1">
-                    <h2 className="text-xl font-semibold mb-4">Booking Summary</h2>
-                    <div className="glass-card p-6 sticky top-24">
-                      {selectedApartment && (
-                        <>
-                          <div className="pb-4 border-b">
-                            <h3 className="font-medium mb-1">{selectedApartment.name}</h3>
-                            <p className="text-sm text-muted-foreground">{selectedApartment.location}</p>
-                          </div>
+                    </div>
+                    
+                    {/* Accommodation Selection */}
+                    <div className="glass-card p-6">
+                      <h3 className="text-xl font-bold mb-4">
+                        {t.booking.accommodationSelect.title}
+                      </h3>
+                      
+                      <div className="space-y-4">
+                        {apartmentsData.map((apartment) => {
+                          const isSelected = selectedApartment?.id === apartment.id;
                           
-                          <div className="py-4 border-b space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span>Check-in</span>
-                              <span className="font-medium">
-                                {startDate ? format(startDate, "EEE, MMM d, yyyy") : "Not selected"}
-                              </span>
+                          return (
+                            <div 
+                              key={apartment.id}
+                              className={`border rounded-lg p-4 flex items-center transition-colors ${
+                                isSelected ? "border-primary bg-primary/5" : "hover:border-muted-foreground/50"
+                              }`}
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center">
+                                  <div className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
+                                    <img 
+                                      src={apartment.image} 
+                                      alt={apartment.name} 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="ml-4">
+                                    <h4 className="font-semibold">{apartment.name}</h4>
+                                    <p className="text-sm text-muted-foreground line-clamp-1">
+                                      {apartment.description}
+                                    </p>
+                                    <div className="flex items-center gap-3 mt-1 text-sm">
+                                      <span className="flex items-center">
+                                        <Users size={14} className="mr-1" />
+                                        {apartment.capacity} {t.booking.accommodationSelect.guests}
+                                      </span>
+                                      <span>${apartment.price} / {t.booking.summary.night}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="ml-4">
+                                <Button 
+                                  variant={isSelected ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setSelectedApartment(apartment)}
+                                >
+                                  {isSelected ? t.booking.accommodationSelect.selected : t.booking.accommodationSelect.select}
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex justify-between items-center">
-                              <span>Check-out</span>
-                              <span className="font-medium">
-                                {endDate ? format(endDate, "EEE, MMM d, yyyy") : "Not selected"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Guests</span>
-                              <span className="font-medium">
-                                {adults} {parseInt(adults) === 1 ? "Adult" : "Adults"}
-                                {parseInt(children) > 0 && `, ${children} ${parseInt(children) === 1 ? "Child" : "Children"}`}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="py-4 border-b space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span>
-                                ${selectedApartment.price} x {nightsCount} {nightsCount === 1 ? "night" : "nights"}
-                              </span>
-                              <span className="font-medium">${selectedApartment.price * nightsCount}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Cleaning fee</span>
-                              <span className="font-medium">$50</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Service fee</span>
-                              <span className="font-medium">$30</span>
-                            </div>
-                          </div>
-                          
-                          <div className="pt-4">
-                            <div className="flex justify-between items-center font-bold">
-                              <span>Total</span>
-                              <span>${totalPrice + 50 + 30}</span>
-                            </div>
-                          </div>
-                        </>
-                      )}
+                          );
+                        })}
+                        
+                        <div className="pt-4 flex justify-end">
+                          <Button 
+                            onClick={nextStep} 
+                            disabled={!selectedApartment}
+                            className="btn-primary"
+                          >
+                            {t.booking.accommodationSelect.continue}
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
                 
-                <div className="flex justify-between mt-8">
-                  <Button 
-                    variant="outline"
-                    onClick={() => setCurrentStep(1)}
-                  >
-                    Back
-                  </Button>
-                  <Button 
-                    className="btn-primary"
-                    onClick={() => setCurrentStep(3)}
-                  >
-                    Review & Confirm <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Step 3: Confirmation */}
-          {currentStep === 3 && (
-            <div className="animate-fade-in [animation-delay:300ms]">
-              <div className="max-w-4xl mx-auto">
-                {!isBookingConfirmed ? (
-                  <>
-                    <h2 className="text-xl font-semibold mb-6">Review Booking Details</h2>
+                {/* Step 2: Guest Information */}
+                {currentStep === 2 && (
+                  <div className="space-y-8 animate-fade-in">
+                    {/* Guest Information Form */}
+                    <div className="glass-card p-6">
+                      <h3 className="text-xl font-bold mb-6">
+                        {t.booking.guestInfo.title}
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName">{t.booking.guestInfo.firstName}</Label>
+                          <Input
+                            id="firstName"
+                            name="firstName"
+                            value={formData.firstName}
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName">{t.booking.guestInfo.lastName}</Label>
+                          <Input
+                            id="lastName"
+                            name="lastName"
+                            value={formData.lastName}
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="email">{t.booking.guestInfo.email}</Label>
+                          <Input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">{t.booking.guestInfo.phone}</Label>
+                          <Input
+                            id="phone"
+                            name="phone"
+                            type="tel"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="address">{t.booking.guestInfo.address}</Label>
+                          <Input
+                            id="address"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="city">{t.booking.guestInfo.city}</Label>
+                          <Input
+                            id="city"
+                            name="city"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="zipCode">{t.booking.guestInfo.zipCode}</Label>
+                          <Input
+                            id="zipCode"
+                            name="zipCode"
+                            value={formData.zipCode}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="country">{t.booking.guestInfo.country}</Label>
+                          <Input
+                            id="country"
+                            name="country"
+                            value={formData.country}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                        
+                        <div className="col-span-1 md:col-span-2 space-y-2">
+                          <Label htmlFor="specialRequests">{t.booking.guestInfo.specialRequests}</Label>
+                          <Textarea
+                            id="specialRequests"
+                            name="specialRequests"
+                            placeholder={t.booking.guestInfo.specialRequestsPlaceholder}
+                            value={formData.specialRequests}
+                            onChange={handleInputChange}
+                            rows={4}
+                          />
+                        </div>
+                      </div>
+                    </div>
                     
-                    <div className="glass-card p-6 mb-8">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Apartment Details */}
-                        <div>
-                          <h3 className="text-lg font-medium mb-4">Accommodation Details</h3>
-                          {selectedApartment && (
-                            <div className="space-y-4">
-                              <div className="rounded-lg overflow-hidden">
-                                <img 
-                                  src={selectedApartment.image} 
-                                  alt={selectedApartment.name}
-                                  className="w-full h-48 object-cover"
+                    {/* Payment Information */}
+                    <div className="glass-card p-6">
+                      <h3 className="text-xl font-bold mb-6">
+                        {t.booking.payment.title}
+                      </h3>
+                      
+                      <RadioGroup
+                        value={formData.paymentMethod}
+                        onValueChange={(value) => 
+                          setFormData(prev => ({ ...prev, paymentMethod: value }))
+                        }
+                      >
+                        <div className="flex flex-col space-y-6">
+                          <div className="flex items-start space-x-3">
+                            <RadioGroupItem value="credit-card" id="credit-card" />
+                            <div className="grid gap-1.5 leading-none">
+                              <label
+                                htmlFor="credit-card"
+                                className="text-base font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {t.booking.payment.creditCard}
+                              </label>
+                            </div>
+                          </div>
+
+                          {formData.paymentMethod === "credit-card" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-7">
+                              <div className="space-y-2">
+                                <Label htmlFor="cardName">{t.booking.payment.nameOnCard}</Label>
+                                <Input
+                                  id="cardName"
+                                  name="cardName"
+                                  value={formData.cardName}
+                                  onChange={handleInputChange}
                                 />
                               </div>
-                              <div>
-                                <h4 className="font-semibold">{selectedApartment.name}</h4>
-                                <p className="text-sm text-muted-foreground">{selectedApartment.location}</p>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="cardNumber">{t.booking.payment.cardNumber}</Label>
+                                <Input
+                                  id="cardNumber"
+                                  name="cardNumber"
+                                  placeholder={t.booking.payment.cardNumberPlaceholder}
+                                  value={formData.cardNumber}
+                                  onChange={handleInputChange}
+                                />
                               </div>
-                              <div className="space-y-1 text-sm">
-                                <div className="flex justify-between">
-                                  <span>Check-in:</span>
-                                  <span className="font-medium">
-                                    {startDate ? format(startDate, "EEE, MMM d, yyyy") : "Not selected"}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Check-out:</span>
-                                  <span className="font-medium">
-                                    {endDate ? format(endDate, "EEE, MMM d, yyyy") : "Not selected"}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Guests:</span>
-                                  <span className="font-medium">
-                                    {adults} {parseInt(adults) === 1 ? "Adult" : "Adults"}
-                                    {parseInt(children) > 0 && `, ${children} ${parseInt(children) === 1 ? "Child" : "Children"}`}
-                                  </span>
-                                </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="cardExpiry">{t.booking.payment.expiryDate}</Label>
+                                <Input
+                                  id="cardExpiry"
+                                  name="cardExpiry"
+                                  placeholder={t.booking.payment.expiryDatePlaceholder}
+                                  value={formData.cardExpiry}
+                                  onChange={handleInputChange}
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="cardCvc">{t.booking.payment.cvc}</Label>
+                                <Input
+                                  id="cardCvc"
+                                  name="cardCvc"
+                                  placeholder={t.booking.payment.cvcPlaceholder}
+                                  value={formData.cardCvc}
+                                  onChange={handleInputChange}
+                                />
                               </div>
                             </div>
                           )}
+
+                          <div className="flex items-start space-x-3">
+                            <RadioGroupItem value="pay-at-property" id="pay-at-property" />
+                            <div className="grid gap-1.5 leading-none">
+                              <label
+                                htmlFor="pay-at-property"
+                                className="text-base font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {t.booking.payment.payAtProperty}
+                              </label>
+                              {formData.paymentMethod === "pay-at-property" && (
+                                <p className="text-sm text-muted-foreground mt-2">
+                                  {t.booking.payment.payAtPropertyInfo}
+                                </p>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        
-                        {/* Guest Details */}
-                        <div>
-                          <h3 className="text-lg font-medium mb-4">Guest Details</h3>
-                          <div className="space-y-4">
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between">
-                                <span>Name:</span>
-                                <span className="font-medium">{formData.firstName} {formData.lastName}</span>
+                      </RadioGroup>
+                    </div>
+                    
+                    <div className="flex justify-between pt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={prevStep}
+                      >
+                        {t.booking.confirmation.back}
+                      </Button>
+                      <Button 
+                        onClick={nextStep}
+                        className="btn-primary"
+                        disabled={!formData.firstName || !formData.lastName || !formData.email}
+                      >
+                        {t.booking.accommodationSelect.continue}
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Step 3: Confirmation */}
+                {currentStep === 3 && !isBookingConfirmed && (
+                  <div className="space-y-8 animate-fade-in">
+                    <div className="glass-card p-6">
+                      <h3 className="text-xl font-bold mb-6">
+                        {t.booking.confirmation.title}
+                      </h3>
+                      
+                      {selectedApartment && (
+                        <div className="space-y-6">
+                          {/* Accommodation Details */}
+                          <div>
+                            <h4 className="text-lg font-semibold mb-3">{t.booking.confirmation.accommodationDetails}</h4>
+                            <div className="flex items-center">
+                              <div className="w-24 h-16 rounded-md overflow-hidden flex-shrink-0">
+                                <img 
+                                  src={selectedApartment.image} 
+                                  alt={selectedApartment.name} 
+                                  className="w-full h-full object-cover"
+                                />
                               </div>
-                              <div className="flex justify-between">
-                                <span>Email:</span>
-                                <span className="font-medium">{formData.email}</span>
+                              <div className="ml-4">
+                                <h5 className="font-medium">{selectedApartment.name}</h5>
+                                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                                  <span>{t.booking.summary.checkIn}: {startDate && format(startDate, "PPP")}</span>
+                                  <span>{t.booking.summary.checkOut}: {endDate && format(endDate, "PPP")}</span>
+                                  <span>{t.booking.summary.guests}: {parseInt(adults) + parseInt(children)}</span>
+                                </div>
                               </div>
-                              <div className="flex justify-between">
-                                <span>Phone:</span>
-                                <span className="font-medium">{formData.phone}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Guest Details */}
+                          <div>
+                            <h4 className="text-lg font-semibold mb-3">{t.booking.confirmation.guestDetails}</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                              <div>
+                                <span className="text-sm text-muted-foreground">{t.booking.confirmation.name}</span>
+                                <p>{formData.firstName} {formData.lastName}</p>
                               </div>
-                              <div className="flex justify-between">
-                                <span>Address:</span>
-                                <span className="font-medium">{formData.address}</span>
+                              
+                              <div>
+                                <span className="text-sm text-muted-foreground">{t.booking.confirmation.email}</span>
+                                <p>{formData.email}</p>
                               </div>
-                              <div className="flex justify-between">
-                                <span>City:</span>
-                                <span className="font-medium">{formData.city}</span>
+                              
+                              <div>
+                                <span className="text-sm text-muted-foreground">{t.booking.confirmation.phone}</span>
+                                <p>{formData.phone}</p>
                               </div>
-                              <div className="flex justify-between">
-                                <span>Country:</span>
-                                <span className="font-medium">{formData.country}</span>
+                              
+                              <div>
+                                <span className="text-sm text-muted-foreground">{t.booking.confirmation.address}</span>
+                                <p>{formData.address}</p>
+                              </div>
+                              
+                              <div>
+                                <span className="text-sm text-muted-foreground">{t.booking.confirmation.city}</span>
+                                <p>{formData.city}</p>
+                              </div>
+                              
+                              <div>
+                                <span className="text-sm text-muted-foreground">{t.booking.confirmation.country}</span>
+                                <p>{formData.country}</p>
                               </div>
                             </div>
                             
                             {formData.specialRequests && (
-                              <div>
-                                <h4 className="font-medium mb-1">Special Requests:</h4>
-                                <p className="text-sm text-muted-foreground">{formData.specialRequests}</p>
+                              <div className="mt-3">
+                                <span className="text-sm text-muted-foreground">{t.booking.confirmation.specialRequests}</span>
+                                <p>{formData.specialRequests}</p>
                               </div>
                             )}
+                          </div>
+                          
+                          {/* Payment Method */}
+                          <div>
+                            <h4 className="text-lg font-semibold mb-3">{t.booking.confirmation.paymentMethod}</h4>
+                            <p>{formData.paymentMethod === "credit-card" ? t.booking.confirmation.creditCard : t.booking.payment.payAtProperty}</p>
+                          </div>
+                          
+                          {/* Price Summary */}
+                          <div>
+                            <h4 className="text-lg font-semibold mb-3">{t.booking.confirmation.priceSummary}</h4>
                             
-                            <div>
-                              <h4 className="font-medium mb-1">Payment Method:</h4>
-                              <p className="text-sm">
-                                {formData.paymentMethod === "credit-card" ? (
-                                  <span className="flex items-center">
-                                    <CreditCard className="h-4 w-4 mr-2" />
-                                    Credit Card (ending in {formData.cardNumber.slice(-4) || "****"})
-                                  </span>
-                                ) : (
-                                  "Pay at Property"
-                                )}
-                              </p>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span>{selectedApartment.price} x {nightsCount} {nightsCount === 1 ? t.booking.summary.night : t.booking.summary.nights}</span>
+                                <span>${totalPrice}</span>
+                              </div>
+                              
+                              <div className="flex justify-between">
+                                <span>{t.booking.summary.cleaningFee}</span>
+                                <span>${cleaningFee}</span>
+                              </div>
+                              
+                              <div className="flex justify-between">
+                                <span>{t.booking.summary.serviceFee}</span>
+                                <span>${serviceFee}</span>
+                              </div>
+                              
+                              <div className="flex justify-between font-semibold pt-2 border-t">
+                                <span>{t.booking.summary.total}</span>
+                                <span>${finalTotal}</span>
+                              </div>
                             </div>
                           </div>
+                          
+                          {/* Terms and Conditions */}
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox 
+                                id="terms" 
+                                checked={termsAgreed}
+                                onCheckedChange={(checked) => setTermsAgreed(checked === true)}
+                              />
+                              <label
+                                htmlFor="terms"
+                                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {t.booking.confirmation.termsAgree} <a href="#" className="text-primary hover:underline">{t.booking.confirmation.termsLink}</a> {t.booking.confirmation.and} <a href="#" className="text-primary hover:underline">{t.booking.confirmation.privacyLink}</a>
+                              </label>
+                            </div>
+                            
+                            <p className="text-sm text-muted-foreground">
+                              {t.booking.confirmation.cancellationInfo}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                     
-                    {/* Price Summary */}
-                    <div className="glass-card p-6 mb-8">
-                      <h3 className="text-lg font-medium mb-4">Price Summary</h3>
-                      <div className="space-y-2">
-                        {selectedApartment && (
-                          <>
-                            <div className="flex justify-between items-center">
-                              <span>
-                                ${selectedApartment.price} x {nightsCount} {nightsCount === 1 ? "night" : "nights"}
-                              </span>
-                              <span className="font-medium">${selectedApartment.price * nightsCount}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Cleaning fee</span>
-                              <span className="font-medium">$50</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Service fee</span>
-                              <span className="font-medium">$30</span>
-                            </div>
-                            <div className="flex justify-between items-center pt-4 border-t mt-4">
-                              <span className="font-semibold">Total</span>
-                              <span className="font-bold text-xl">${totalPrice + 50 + 30}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Terms and Conditions */}
-                    <div className="mb-8">
-                      <div className="flex items-start">
-                        <input
-                          type="checkbox"
-                          id="terms"
-                          className="mt-1 mr-3"
-                        />
-                        <label htmlFor="terms" className="text-sm text-muted-foreground">
-                          I agree to the <a href="#" className="text-primary underline">Terms and Conditions</a> and <a href="#" className="text-primary underline">Privacy Policy</a>. I understand that my booking is subject to the property's cancellation policy.
-                        </label>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between">
+                    <div className="flex justify-between pt-4">
                       <Button 
-                        variant="outline"
-                        onClick={() => setCurrentStep(2)}
+                        variant="outline" 
+                        onClick={prevStep}
                       >
-                        Back
+                        {t.booking.confirmation.back}
                       </Button>
                       <Button 
+                        onClick={handleConfirmBooking}
                         className="btn-primary"
-                        onClick={handleSubmitBooking}
+                        disabled={!termsAgreed}
                       >
-                        Confirm Booking <Check className="ml-2 h-4 w-4" />
+                        {t.booking.confirmation.confirmBooking}
                       </Button>
                     </div>
-                  </>
-                ) : (
-                  <div className="glass-card p-8 text-center animate-fade-in">
-                    <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  </div>
+                )}
+                
+                {/* Booking Confirmation */}
+                {isBookingConfirmed && (
+                  <div className="text-center py-12 space-y-6 animate-fade-in">
+                    <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Check className="h-8 w-8 text-primary" />
                     </div>
-                    <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
-                    <p className="text-muted-foreground mb-6">
-                      Your reservation has been successfully confirmed. A confirmation email has been sent to {formData.email}.
+                    
+                    <h2 className="text-2xl font-bold">
+                      {t.booking.confirmation.success}
+                    </h2>
+                    
+                    <p className="text-muted-foreground max-w-lg mx-auto">
+                      {t.booking.confirmation.emailSent} <strong>{formData.email}</strong>
                     </p>
-                    <p className="font-medium mb-8">
-                      Booking Reference: <span className="text-primary">MRS-{Math.floor(Math.random() * 10000).toString().padStart(4, '0')}</span>
-                    </p>
-                    <Button asChild className="btn-primary">
-                      <Link to="/">Return to Homepage</Link>
-                    </Button>
+                    
+                    <div className="pt-4">
+                      <div className="bg-muted inline-block px-4 py-2 rounded-lg">
+                        <span className="text-sm text-muted-foreground">{t.booking.confirmation.bookingReference}</span>
+                        <p className="font-mono font-semibold">MRS-{Math.floor(Math.random() * 9000 + 1000)}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-8">
+                      <Button asChild className="btn-primary">
+                        <Link to="/">{t.booking.confirmation.returnToHome}</Link>
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
+              
+              {/* Booking Summary Sidebar */}
+              {currentStep < 3 && !isBookingConfirmed && selectedApartment && (
+                <div className="col-span-1">
+                  <div className="sticky top-28">
+                    <div className="glass-card p-6 space-y-6">
+                      <h3 className="text-xl font-bold mb-2">
+                        {t.booking.summary.title}
+                      </h3>
+                      
+                      <div className="flex items-center">
+                        <div className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
+                          <img 
+                            src={selectedApartment.image} 
+                            alt={selectedApartment.name} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="ml-4">
+                          <h4 className="font-medium">{selectedApartment.name}</h4>
+                          <p className="text-sm text-muted-foreground">{selectedApartment.location}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2 border-t space-y-2">
+                        <div className="flex justify-between">
+                          <div>
+                            <p className="font-medium">{t.booking.summary.checkIn}</p>
+                            <p className="text-sm text-muted-foreground">{startDate && format(startDate, "PPP")}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium">{t.booking.summary.checkOut}</p>
+                            <p className="text-sm text-muted-foreground">{endDate && format(endDate, "PPP")}</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <p className="font-medium">{t.booking.summary.guests}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {adults} {parseInt(adults) === 1 ? t.booking.dates.adult : t.booking.dates.adults}
+                            {parseInt(children) > 0 && `, ${children} ${parseInt(children) === 1 ? t.booking.dates.child : t.booking.dates.children}`}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2 border-t space-y-2">
+                        <div className="flex justify-between">
+                          <span>{selectedApartment.price} x {nightsCount} {nightsCount === 1 ? t.booking.summary.night : t.booking.summary.nights}</span>
+                          <span>${totalPrice}</span>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span>{t.booking.summary.cleaningFee}</span>
+                          <span>${cleaningFee}</span>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span>{t.booking.summary.serviceFee}</span>
+                          <span>${serviceFee}</span>
+                        </div>
+                        
+                        <div className="flex justify-between font-semibold pt-2 border-t">
+                          <span>{t.booking.summary.total}</span>
+                          <span>${finalTotal}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </section>
       </main>
       

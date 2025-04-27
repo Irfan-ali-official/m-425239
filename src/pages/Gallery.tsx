@@ -2,141 +2,122 @@
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Button } from "@/components/ui/button";
+
+type GalleryImage = {
+  id: number;
+  src: string;
+  alt: string;
+  category: string;
+};
 
 // Sample gallery images
-const galleryImages = [
+const galleryImages: GalleryImage[] = [
   {
     id: 1,
-    src: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop",
-    alt: "Beachfront view",
+    src: "https://images.unsplash.com/photo-1615571022219-eb45cf7faa9d",
+    alt: "Beach front view",
     category: "exterior"
   },
   {
     id: 2,
-    src: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop",
-    alt: "Luxury suite interior",
+    src: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b",
+    alt: "Luxury suite",
     category: "rooms"
   },
   {
     id: 3,
-    src: "https://images.unsplash.com/photo-1584132905271-512c958d674a?w=800&h=600&fit=crop",
+    src: "https://images.unsplash.com/photo-1564501049412-61c2a3083791",
     alt: "Swimming pool",
     category: "amenities"
   },
   {
     id: 4,
-    src: "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?w=800&h=600&fit=crop",
-    alt: "Premium apartment",
+    src: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c",
+    alt: "Studio apartment",
     category: "rooms"
   },
   {
     id: 5,
-    src: "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=800&h=600&fit=crop",
-    alt: "Beach sunset",
+    src: "https://images.unsplash.com/photo-1562790351-d273a961e0e9",
+    alt: "Resort exterior",
     category: "exterior"
   },
   {
     id: 6,
-    src: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=600&fit=crop",
-    alt: "Dining area",
+    src: "https://images.unsplash.com/photo-1584132967334-10e028bd69f7",
+    alt: "Beach bar",
     category: "amenities"
   },
   {
     id: 7,
-    src: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800&h=600&fit=crop",
-    alt: "Bathroom",
-    category: "rooms"
-  },
-  {
-    id: 8,
-    src: "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=800&h=600&fit=crop",
-    alt: "Beach pathway",
-    category: "exterior"
-  },
-  {
-    id: 9,
-    src: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=600&fit=crop",
+    src: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461",
     alt: "Restaurant",
     category: "amenities"
   },
   {
-    id: 10,
-    src: "https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?w=800&h=600&fit=crop",
-    alt: "Bedroom",
+    id: 8,
+    src: "https://images.unsplash.com/photo-1566665797739-1674de7a421a",
+    alt: "Bathroom",
     category: "rooms"
   },
   {
-    id: 11,
-    src: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=600&fit=crop",
-    alt: "Beach umbrellas",
+    id: 9,
+    src: "https://images.unsplash.com/photo-1610641818989-c2051b5e2cfd",
+    alt: "Sea view terrace",
     category: "exterior"
   },
   {
-    id: 12,
-    src: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&h=600&fit=crop",
-    alt: "Spa",
+    id: 10,
+    src: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa",
+    alt: "Hotel spa",
     category: "amenities"
+  },
+  {
+    id: 11,
+    src: "https://images.unsplash.com/photo-1540541338287-41700207dee6",
+    alt: "Suite bedroom",
+    category: "rooms"
+  },
+  {
+    id: 12,
+    src: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd",
+    alt: "Beach lounges",
+    category: "exterior"
   },
 ];
 
 export default function Gallery() {
   const { t } = useLanguage();
-  const [selectedImage, setSelectedImage] = useState<number | null>(null);
-  const [filteredImages, setFilteredImages] = useState(galleryImages);
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [lightboxImage, setLightboxImage] = useState<GalleryImage | null>(null);
   
   useEffect(() => {
     // Scroll to top when component mounts
     window.scrollTo(0, 0);
   }, []);
   
-  // Filter gallery images by category
-  const filterGallery = (category: string) => {
-    setActiveFilter(category);
+  const filteredImages = selectedCategory === "all" 
+    ? galleryImages 
+    : galleryImages.filter(img => img.category === selectedCategory);
     
-    if (category === "all") {
-      setFilteredImages(galleryImages);
-    } else {
-      setFilteredImages(galleryImages.filter(img => img.category === category));
-    }
+  const categories = [
+    { id: "all", label: t.gallery.filters.all },
+    { id: "exterior", label: t.gallery.filters.exterior },
+    { id: "rooms", label: t.gallery.filters.rooms },
+    { id: "amenities", label: t.gallery.filters.amenities }
+  ];
+  
+  const openLightbox = (image: GalleryImage) => {
+    setLightboxImage(image);
+    document.body.style.overflow = "hidden";
   };
   
-  // Handle lightbox navigation
-  const navigateGallery = (direction: "prev" | "next") => {
-    if (selectedImage === null) return;
-    
-    const currentIndex = filteredImages.findIndex(img => img.id === selectedImage);
-    let newIndex;
-    
-    if (direction === "prev") {
-      newIndex = currentIndex > 0 ? currentIndex - 1 : filteredImages.length - 1;
-    } else {
-      newIndex = currentIndex < filteredImages.length - 1 ? currentIndex + 1 : 0;
-    }
-    
-    setSelectedImage(filteredImages[newIndex].id);
+  const closeLightbox = () => {
+    setLightboxImage(null);
+    document.body.style.overflow = "";
   };
-  
-  // Handle keyboard navigation for lightbox
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (selectedImage === null) return;
-      
-      if (e.key === "Escape") {
-        setSelectedImage(null);
-      } else if (e.key === "ArrowLeft") {
-        navigateGallery("prev");
-      } else if (e.key === "ArrowRight") {
-        navigateGallery("next");
-      }
-    };
-    
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedImage, filteredImages]);
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -144,117 +125,92 @@ export default function Gallery() {
       
       <main className="flex-1 pt-20">
         {/* Header Section */}
-        <section className="relative py-20 bg-gradient-to-r from-sea-light to-white dark:from-sea-dark dark:to-background overflow-hidden">
-          <div className="container relative z-10">
-            <div className="max-w-3xl mx-auto text-center animate-fade-in">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+        <section className="py-16 bg-gradient-to-r from-sea-light to-white dark:from-sea-dark dark:to-background">
+          <div className="container">
+            <div className="text-center max-w-3xl mx-auto">
+              <h1 className="text-3xl md:text-4xl font-bold mb-4">
                 {t.gallery.title}
               </h1>
-              <p className="text-muted-foreground text-lg mb-6">
+              <p className="text-muted-foreground text-lg">
                 {t.gallery.subtitle}
               </p>
             </div>
-          </div>
-          
-          {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-1/3 h-full opacity-10">
-            <div className="absolute top-10 right-10 w-64 h-64 rounded-full bg-primary/50 blur-3xl" />
-            <div className="absolute bottom-10 right-40 w-48 h-48 rounded-full bg-sea-light blur-3xl" />
           </div>
         </section>
         
         {/* Gallery Filters */}
         <section className="py-8">
           <div className="container">
-            <div className="flex flex-wrap justify-center gap-2 mb-8 animate-fade-in">
-              {["all", "exterior", "rooms", "amenities"].map((category) => (
-                <button
-                  key={category}
-                  onClick={() => filterGallery(category)}
-                  className={cn(
-                    "px-6 py-2 rounded-full transition-all",
-                    activeFilter === category
-                      ? "bg-primary text-white shadow-lg"
-                      : "bg-card hover:bg-muted"
-                  )}
+            <div className="flex flex-wrap justify-center gap-2 mb-8">
+              {categories.map(category => (
+                <Button
+                  key={category.id}
+                  variant={selectedCategory === category.id ? "default" : "outline"}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className="rounded-full"
                 >
-                  {category === "all" 
-                    ? t.gallery.filters.all 
-                    : category === "exterior" 
-                      ? t.gallery.filters.exterior 
-                      : category === "rooms" 
-                        ? t.gallery.filters.rooms 
-                        : t.gallery.filters.amenities}
-                </button>
+                  {category.label}
+                </Button>
               ))}
             </div>
-            
-            {/* Gallery Grid */}
+          </div>
+        </section>
+        
+        {/* Gallery Grid */}
+        <section className="pb-16">
+          <div className="container">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredImages.map((image, index) => (
-                <div 
-                  key={image.id} 
-                  className="relative overflow-hidden rounded-xl aspect-[4/3] cursor-pointer group animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                  onClick={() => setSelectedImage(image.id)}
+                <div
+                  key={image.id}
+                  className="relative overflow-hidden rounded-lg aspect-square cursor-pointer group animate-fade-in"
+                  style={{ animationDelay: `${(index % 8) * 100}ms` }}
+                  onClick={() => openLightbox(image)}
                 >
-                  <img 
-                    src={image.src} 
+                  <img
+                    src={`${image.src}?w=500&h=500&fit=crop&q=80`}
                     alt={image.alt}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                    <p className="text-white">{image.alt}</p>
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
+                    <div className="p-4 w-full">
+                      <p className="text-white font-medium">{image.alt}</p>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         </section>
-        
-        {/* Lightbox */}
-        {selectedImage !== null && (
-          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in">
-            <button 
-              className="absolute top-4 right-4 text-white p-2 rounded-full hover:bg-white/10 transition-colors"
-              onClick={() => setSelectedImage(null)}
+      </main>
+      
+      {/* Lightbox */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={closeLightbox}
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh] animate-fade-in">
+            <img
+              src={lightboxImage.src}
+              alt={lightboxImage.alt}
+              className="w-full h-full object-contain"
+            />
+            <button
+              className="absolute top-2 right-2 text-white p-2 hover:bg-white/10 rounded-full"
+              onClick={closeLightbox}
             >
-              <X className="h-6 w-6" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
               <span className="sr-only">Close</span>
             </button>
-            
-            <button 
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-white p-4 rounded-full hover:bg-white/10 transition-colors"
-              onClick={() => navigateGallery("prev")}
-            >
-              <span className="sr-only">Previous</span>
-              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            
-            <div className="max-w-5xl max-h-[80vh] overflow-hidden">
-              {filteredImages.find(img => img.id === selectedImage) && (
-                <img 
-                  src={filteredImages.find(img => img.id === selectedImage)?.src} 
-                  alt={filteredImages.find(img => img.id === selectedImage)?.alt}
-                  className="max-w-full max-h-[80vh] object-contain"
-                />
-              )}
+            <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-4 py-3">
+              <p className="text-white">{lightboxImage.alt}</p>
             </div>
-            
-            <button 
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white p-4 rounded-full hover:bg-white/10 transition-colors"
-              onClick={() => navigateGallery("next")}
-            >
-              <span className="sr-only">Next</span>
-              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
-        )}
-      </main>
+        </div>
+      )}
       
       <Footer />
     </div>
